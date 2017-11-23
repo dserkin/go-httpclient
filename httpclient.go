@@ -5,6 +5,7 @@
 package httpclient
 
 import (
+	"context"
 	"fmt"
 
 	"bytes"
@@ -149,8 +150,12 @@ func (this *Response) ToString() (string, error) {
 
 // Prepare a request.
 func prepareRequest(method string, url_ string, headers map[string]string,
-	body io.Reader, options map[int]interface{}) (*http.Request, error) {
+	body io.Reader, options map[int]interface{}, ctx context.Context) (*http.Request, error) {
 	req, err := http.NewRequest(method, url_, body)
+
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
 
 	if err != nil {
 		return nil, err
@@ -406,6 +411,9 @@ type HttpClient struct {
 	// Cookies of current request.
 	oneTimeCookies []*http.Cookie
 
+	// Context
+	context context.Context
+
 	// Global transport of this client, might be shared between different
 	// requests.
 	transport http.RoundTripper
@@ -491,6 +499,12 @@ func (this *HttpClient) WithOption(k int, v interface{}) *HttpClient {
 	if hasOption(k, jarOptions) {
 		this.reuseJar = false
 	}
+
+	return this
+}
+
+func (this *HttpClient) WithContext(ctx context.Context) *HttpClient {
+	this.context = ctx
 
 	return this
 }
@@ -588,10 +602,11 @@ func (this *HttpClient) Do(method string, url string, headers map[string]string,
 		Jar:           jar,
 	}
 
-	req, err := prepareRequest(method, url, headers, body, options)
+	req, err := prepareRequest(method, url, headers, body, options, this.context)
 	if err != nil {
 		return nil, err
 	}
+
 	if debugEnabled, ok := options[OPT_DEBUG]; ok {
 		if debugEnabled.(bool) {
 			dump, err := httputil.DumpRequestOut(req, true)
