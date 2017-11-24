@@ -150,13 +150,8 @@ func (this *Response) ToString() (string, error) {
 
 // Prepare a request.
 func prepareRequest(method string, url_ string, headers map[string]string,
-	body io.Reader, options map[int]interface{}, ctx context.Context) (*http.Request, error) {
+	body io.Reader, options map[int]interface{}) (*http.Request, error) {
 	req, err := http.NewRequest(method, url_, body)
-
-	if ctx != nil {
-		req = req.WithContext(ctx)
-	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -602,10 +597,12 @@ func (this *HttpClient) Do(method string, url string, headers map[string]string,
 		Jar:           jar,
 	}
 
-	req, err := prepareRequest(method, url, headers, body, options, this.context)
+	req, err := prepareRequest(method, url, headers, body, options)
 	if err != nil {
 		return nil, err
 	}
+
+	req = req.WithContext(this.context)
 
 	if debugEnabled, ok := options[OPT_DEBUG]; ok {
 		if debugEnabled.(bool) {
